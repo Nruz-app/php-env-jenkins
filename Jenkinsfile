@@ -25,9 +25,10 @@ pipeline {
         stage('Ejecutar PHP en Docker') {
             steps {
                 script {
-                    docker.image('php:8.2-cli').inside('--entrypoint="" -e APP_VAR') {
+                    docker.image('php:8.2-cli').inside('--entrypoint=""') {
                         sh '''
-                            echo "APP_VAR=$APP_VAR" > .env
+                            printenv APP_VAR | sed 's/^/APP_VAR="/; s/$/"/' > .env
+                            cat .env
                             php index.php
                         '''
                     }
