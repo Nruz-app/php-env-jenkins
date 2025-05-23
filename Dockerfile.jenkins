@@ -1,0 +1,12 @@
+FROM jenkins/jenkins:lts
+
+USER root
+
+# Instala Docker dentro del contenedor Jenkins
+RUN apt-get update && \
+    apt-get install -y docker.io
+
+# Agrega Jenkins al grupo docker
+RUN groupadd -f docker && usermod -aG docker jenkins
+
+USER jenkins
