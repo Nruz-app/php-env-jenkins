@@ -8,7 +8,7 @@ pipeline {
     stages {
         stage('Clonar repositorio') {
             steps {
-                git url: 'https://github.com/Nruz-app/php-jenkins', branch: 'main'
+                git url: 'https://github.com/Nruz-app/php-env-jenkins', branch: 'main'
             }
         }
 
