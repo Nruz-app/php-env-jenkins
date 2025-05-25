@@ -23,7 +23,10 @@ pipeline {
         stage('Obtener secreto desde Vault') {
             steps {
                 script {
-                    def json = sh(script: "curl -s --header 'X-Vault-Token: ${VAULT_TOKEN}' ${VAULT_ADDR}/v1/secret/data/test", returnStdout: true).trim()
+                    def json = sh(
+                        script: "curl -s --header 'X-Vault-Token: ${VAULT_TOKEN}' ${VAULT_ADDR}/v1/secret/data/test",
+                        returnStdout: true
+                    ).trim()
                     def secreto = readJSON text: json
 
                     def appVar = ''
@@ -53,14 +56,14 @@ pipeline {
         stage('Deploy a hosting') {
             steps {
                 script {
-                    // Copiar archivos al hosting remoto
+                    // Copiar archivos al hosting remoto evitando verificación de host
                     sh """
-                    scp -r * ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/
-                    scp .env ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/
+                        scp -o StrictHostKeyChecking=no -r * ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/
+                        scp -o StrictHostKeyChecking=no .env ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/
                     """
 
                     // Opcional: reiniciar servidor web (si es necesario)
-                    // sh "ssh ${REMOTE_USER}@${REMOTE_HOST} 'sudo systemctl restart apache2'"
+                    // sh "ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} 'sudo systemctl restart apache2'"
                 }
             }
         }
