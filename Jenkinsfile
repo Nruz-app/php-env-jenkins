@@ -1,5 +1,3 @@
-def appVar = ''
-
 pipeline {
     agent any
 
@@ -24,8 +22,18 @@ pipeline {
                 script {
                     def json = sh(script: "curl -s --header 'X-Vault-Token: ${VAULT_TOKEN}' ${VAULT_ADDR}/v1/secret/data/test", returnStdout: true).trim()
                     def secreto = readJSON text: json
-                    appVar = secreto.data.data.APP_VAR
-                    echo "Valor de APP_VAR obtenido: ${appVar}"
+
+                    // Selecciona la clave correcta según el entorno
+                    def appVar = ''
+                    if (params.ENVIRONMENT == 'DEV') {
+                        appVar = secreto.data.data.APP_VAR_DEV
+                    } else if (params.ENVIRONMENT == 'PROD') {
+                        appVar = secreto.data.data.APP_VAR_PROD
+                    }
+
+                    echo "Valor de APP_VAR (${params.ENVIRONMENT}): ${appVar}"
+                    
+                    // Guardar en .env para futuras etapas
                     writeFile file: '.env', text: "APP_VAR=${appVar}"
                 }
             }
@@ -45,10 +53,10 @@ pipeline {
             steps {
                 script {
                     docker.image('php:8.2-cli').inside('--entrypoint=""') {
-                        // Se pasa la variable appVar definida globalmente
+                        // Cargar la variable desde el archivo .env previamente creado
                         sh """
-                            echo APP_VAR="${appVar}" > .env
                             cat .env
+                            export $(cat .env | xargs)
                             php index.php
                         """
                     }
