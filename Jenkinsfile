@@ -1,3 +1,5 @@
+def appVar = ''
+
 pipeline {
     agent any
 
@@ -7,8 +9,7 @@ pipeline {
 
     environment {
         VAULT_ADDR = 'http://172.21.208.1:8200'
-        VAULT_TOKEN = credentials('vault-root-token')  // Token de Vault guardado en Jenkins Credentials
-        // ENVIRONMENT se toma del parámetro, no es necesario definirlo aquí
+        VAULT_TOKEN = credentials('vault-root-token')
     }
 
     stages {
@@ -21,18 +22,11 @@ pipeline {
         stage('Obtener secreto desde Vault') {
             steps {
                 script {
-                    def vaultSecretJson = sh (
-                        script: """
-                            curl -s --header "X-Vault-Token: ${VAULT_TOKEN}" \
-                            ${VAULT_ADDR}/v1/secret/data/test
-                        """, returnStdout: true
-                    ).trim()
-
-                    def vaultSecret = readJSON text: vaultSecretJson
-
-                    // Accede a la clave APP_VAR_DEV o APP_VAR_PROD, dependiendo del parámetro
-                    def appVarFromVault = vaultSecret.data.data["APP_VAR_${params.ENVIRONMENT}"]
-                    env.APP_VAR = appVarFromVault
+                    def json = sh(script: "curl -s --header 'X-Vault-Token: ${VAULT_TOKEN}' ${VAULT_ADDR}/v1/secret/data/test", returnStdout: true).trim()
+                    def secreto = readJSON text: json
+                    appVar = secreto.data.data.APP_VAR
+                    echo "Valor de APP_VAR obtenido: ${appVar}"
+                    writeFile file: '.env', text: "APP_VAR=${appVar}"
                 }
             }
         }
@@ -51,8 +45,9 @@ pipeline {
             steps {
                 script {
                     docker.image('php:8.2-cli').inside('--entrypoint=""') {
+                        // Se pasa la variable appVar definida globalmente
                         sh """
-                            echo APP_VAR="${APP_VAR}" > .env
+                            echo APP_VAR="${appVar}" > .env
                             cat .env
                             php index.php
                         """
