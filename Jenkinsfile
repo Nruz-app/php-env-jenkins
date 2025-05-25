@@ -1,6 +1,15 @@
 pipeline {
     agent any
 
+    parameters {
+        choice(name: 'ENVIRONMENT', choices: ['DEV', 'PROD'], description: 'Selecciona el entorno de despliegue')
+    }
+
+    environment {
+        VAULT_ADDR = 'http://172.21.208.1:8200'
+        VAULT_TOKEN = credentials('vault-root-token')
+    }
+
     stages {
         stage('Clonar repositorio') {
             steps {
@@ -8,10 +17,49 @@ pipeline {
             }
         }
 
-        stage('Ejecutar index.php con PHP') {
+        stage('Obtener secreto desde Vault') {
             steps {
-                // Ejecuta php directamente (requiere que PHP esté instalado en el agente Jenkins)
-                sh 'php index.php'
+                script {
+                    def json = sh(script: "curl -s --header 'X-Vault-Token: ${VAULT_TOKEN}' ${VAULT_ADDR}/v1/secret/data/test", returnStdout: true).trim()
+                    def secreto = readJSON text: json
+
+                    def appVar = ''
+                    if (params.ENVIRONMENT == 'DEV') {
+                        appVar = secreto.data.data.APP_VAR_DEV
+                    } else if (params.ENVIRONMENT == 'PROD') {
+                        appVar = secreto.data.data.APP_VAR_PROD
+                    }
+
+                    echo "Valor de APP_VAR (${params.ENVIRONMENT}): ${appVar}"
+
+                    writeFile file: '.env', text: "APP_VAR=${appVar}"
+                }
+            }
+        }
+
+        stage('Instalar dependencias') {
+            steps {
+                script {
+                    docker.image('composer:2').inside('--entrypoint=""') {
+                        sh 'composer install'
+                    }
+                }
+            }
+        }
+
+        stage('Desplegar entorno completo con Docker Compose') {
+            steps {
+                sh 'docker-compose down || true' // limpia antes
+                sh 'docker-compose up -d --build'
+            }
+        }
+
+        stage('Testear servidor NGINX') {
+            steps {
+                // Esperar un poco a que levante el servidor
+                sh 'sleep 10'
+                // Hacer curl para probar la respuesta
+                sh 'curl -v http://localhost:8080/index.php'
             }
         }
     }
