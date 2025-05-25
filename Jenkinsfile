@@ -21,7 +21,7 @@ pipeline {
                     def vaultSecretJson = sh (
                         script: """
                             curl -s --header "X-Vault-Token: ${VAULT_TOKEN}" \
-                            ${VAULT_ADDR}/v1/secret/data/TEST
+                            ${VAULT_ADDR}/v1/secret/data/test
                         """, returnStdout: true
                     ).trim()
 
