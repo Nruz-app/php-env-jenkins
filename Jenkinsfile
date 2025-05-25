@@ -8,9 +8,6 @@ pipeline {
     environment {
         VAULT_ADDR = 'http://172.21.208.1:8200'
         VAULT_TOKEN = credentials('vault-root-token')
-        REMOTE_HOST = 'ergosanitas.com'
-        REMOTE_USER = 'ergosan1'
-        REMOTE_PATH = '/home3/ergosan1/php'  // Ruta para el sitio /php
     }
 
     stages {
@@ -23,10 +20,7 @@ pipeline {
         stage('Obtener secreto desde Vault') {
             steps {
                 script {
-                    def json = sh(
-                        script: "curl -s --header 'X-Vault-Token: ${VAULT_TOKEN}' ${VAULT_ADDR}/v1/secret/data/test",
-                        returnStdout: true
-                    ).trim()
+                    def json = sh(script: "curl -s --header 'X-Vault-Token: ${VAULT_TOKEN}' ${VAULT_ADDR}/v1/secret/data/test", returnStdout: true).trim()
                     def secreto = readJSON text: json
 
                     def appVar = ''
@@ -53,17 +47,16 @@ pipeline {
             }
         }
 
-        stage('Deploy a hosting') {
+        stage('Ejecutar PHP en Docker') {
             steps {
                 script {
-                    // Copiar archivos al hosting remoto evitando verificación de host
-                    sh """
-                        scp -o StrictHostKeyChecking=no -r * ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/
-                        scp -o StrictHostKeyChecking=no .env ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/
-                    """
-
-                    // Opcional: reiniciar servidor web (si es necesario)
-                    // sh "ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} 'sudo systemctl restart apache2'"
+                    docker.image('php:8.2-cli').inside('--entrypoint=""') {
+                        sh '''#!/bin/bash
+                            cat .env
+                            export $(cat .env | xargs)
+                            php index.php
+                        '''
+                    }
                 }
             }
         }
