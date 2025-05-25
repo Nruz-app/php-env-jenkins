@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        VAULT_ADDR = 'http://localhost:8200'
+        VAULT_ADDR = 'http://172.21.208.1:8200'
         VAULT_TOKEN = credentials('vault-root-token')  // Token de Vault guardado en Jenkins Credentials
         ENVIRONMENT = 'DEV' // O 'PROD' - podrías parametrizar este valor en Jenkins para elegir ambiente
     }
