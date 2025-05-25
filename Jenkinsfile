@@ -8,6 +8,9 @@ pipeline {
     environment {
         VAULT_ADDR = 'http://172.21.208.1:8200'
         VAULT_TOKEN = credentials('vault-root-token')
+        REMOTE_HOST = 'ergosanitas.com'
+        REMOTE_USER = 'ergosan1'
+        REMOTE_PATH = '/home3/ergosan1/php'  // Ruta para el sitio /php
     }
 
     stages {
@@ -47,19 +50,18 @@ pipeline {
             }
         }
 
-        stage('Desplegar entorno completo con Docker Compose') {
+        stage('Deploy a hosting') {
             steps {
-                sh 'docker-compose down || true' // limpia antes
-                sh 'docker-compose up -d --build'
-            }
-        }
+                script {
+                    // Copiar archivos al hosting remoto
+                    sh """
+                    scp -r * ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/
+                    scp .env ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/
+                    """
 
-        stage('Testear servidor NGINX') {
-            steps {
-                // Esperar un poco a que levante el servidor
-                sh 'sleep 10'
-                // Hacer curl para probar la respuesta
-                sh 'curl -v http://localhost:8080/index.php'
+                    // Opcional: reiniciar servidor web (si es necesario)
+                    // sh "ssh ${REMOTE_USER}@${REMOTE_HOST} 'sudo systemctl restart apache2'"
+                }
             }
         }
     }
