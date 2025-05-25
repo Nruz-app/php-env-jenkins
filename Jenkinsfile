@@ -1,10 +1,14 @@
 pipeline {
     agent any
 
+    parameters {
+        choice(name: 'ENVIRONMENT', choices: ['DEV', 'PROD'], description: 'Selecciona el entorno de despliegue')
+    }
+
     environment {
         VAULT_ADDR = 'http://172.21.208.1:8200'
         VAULT_TOKEN = credentials('vault-root-token')  // Token de Vault guardado en Jenkins Credentials
-        ENVIRONMENT = 'DEV' // O 'PROD' - podrías parametrizar este valor en Jenkins para elegir ambiente
+        // ENVIRONMENT se toma del parámetro, no es necesario definirlo aquí
     }
 
     stages {
@@ -17,7 +21,6 @@ pipeline {
         stage('Obtener secreto desde Vault') {
             steps {
                 script {
-                    // Llamada CURL para obtener secreto desde Vault, parsear JSON y extraer la variable correcta
                     def vaultSecretJson = sh (
                         script: """
                             curl -s --header "X-Vault-Token: ${VAULT_TOKEN}" \
@@ -26,10 +29,9 @@ pipeline {
                     ).trim()
 
                     def vaultSecret = readJSON text: vaultSecretJson
-                    // Extraemos el dato dinámicamente según ambiente
-                    def appVarFromVault = vaultSecret.data.data["APP_VAR_${ENVIRONMENT}"]
 
-                    // Asignamos la variable al entorno Jenkins
+                    // Accede a la clave APP_VAR_DEV o APP_VAR_PROD, dependiendo del parámetro
+                    def appVarFromVault = vaultSecret.data.data["APP_VAR_${params.ENVIRONMENT}"]
                     env.APP_VAR = appVarFromVault
                 }
             }
@@ -50,7 +52,6 @@ pipeline {
                 script {
                     docker.image('php:8.2-cli').inside('--entrypoint=""') {
                         sh """
-                            # Creamos el archivo .env con la variable inyectada
                             echo APP_VAR="${APP_VAR}" > .env
                             cat .env
                             php index.php
