@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        VAULT_ADDR = 'http://172.21.208.1:8200'
+        VAULT_ADDR = 'http://172.23.16.1:8200'
         VAULT_TOKEN = credentials('vault-root-token')
     }
 
